@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Track, fetchTracks } from '../services/api';
+import { Track } from '../services/api';
 
 interface AudioContextType {
   currentTrack: Track | null;
@@ -30,6 +30,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState(0);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
 
   // Initialize audio element
   useEffect(() => {
@@ -42,12 +43,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const handleEnded = () => playNext();
     const handleCanPlay = () => setIsLoading(false);
     const handleWaiting = () => setIsLoading(true);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -55,32 +60,66 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
       audio.pause();
     };
-  }, [isRadioMode, playlist, currentTrack]); // Dependencies for playNext closure
+  }, []); // Empty dependency array for init, we use refs for state access in callbacks if needed
+
+  // Effect to handle track changes
+  useEffect(() => {
+    if (!currentTrack || !audioRef.current) return;
+
+    const audio = audioRef.current;
+    
+    // Only change src if it's different to prevent reloading same track
+    // But here currentTrack changed, so we assume it's new
+    const playNewTrack = async () => {
+      try {
+        audio.src = currentTrack.trackFileUrl;
+        audio.load(); // Ensure it loads
+        playPromiseRef.current = audio.play();
+        await playPromiseRef.current;
+      } catch (error) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error("Playback failed:", error);
+        }
+      }
+    };
+
+    playNewTrack();
+
+  }, [currentTrack]);
 
   const playTrack = (track: Track) => {
     if (currentTrack?._id === track._id) {
       togglePlay();
       return;
     }
-
-    if (audioRef.current) {
-      audioRef.current.src = track.trackFileUrl;
-      audioRef.current.play().catch(e => console.error("Playback failed:", e));
-      setCurrentTrack(track);
-      setIsPlaying(true);
-    }
+    setCurrentTrack(track);
+    // The useEffect above will handle the actual playing
   };
 
-  const togglePlay = () => {
-    if (audioRef.current && currentTrack) {
-      if (isPlaying) {
-        audioRef.current.pause();
+  const togglePlay = async () => {
+    if (!audioRef.current || !currentTrack) return;
+
+    const audio = audioRef.current;
+
+    try {
+      if (audio.paused) {
+        playPromiseRef.current = audio.play();
+        await playPromiseRef.current;
       } else {
-        audioRef.current.play().catch(e => console.error("Playback failed:", e));
+        // If a play promise is pending, we should wait for it before pausing?
+        // Or just pause. The AbortError comes if we pause while play is pending.
+        // But we can catch it.
+        audio.pause();
       }
-      setIsPlaying(!isPlaying);
+    } catch (error) {
+      // Ignore AbortError which happens if we pause while loading/playing
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("Toggle play failed:", error);
+      }
     }
   };
 
@@ -88,35 +127,68 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setIsRadioMode(!isRadioMode);
   };
 
-  const playNext = () => {
-    if (playlist.length === 0) return;
+  // We need to access the latest state in playNext, so we use a ref or just rely on React re-rendering playNext
+  // playNext is called by 'ended' event listener. 
+  // Since 'ended' listener is attached once in useEffect([]), it captures the initial state of playNext closure.
+  // We need to fix the event listener to access latest state or use a ref for the callback.
+  
+  // Better approach: Use a ref for the playlist and radio mode to access inside the static event listener,
+  // OR re-attach listeners when dependencies change.
+  // Re-attaching listeners is safer for closure issues.
+  
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    if (isRadioMode) {
-      // Pick a random track different from current
-      let nextIndex = Math.floor(Math.random() * playlist.length);
-      let nextTrack = playlist[nextIndex];
+    const handleEnded = () => {
+      // Logic for next track
+      if (playlist.length === 0) return;
+
+      let nextTrack: Track;
       
-      // Try to avoid repeating the same song immediately if possible
-      if (playlist.length > 1 && nextTrack._id === currentTrack?._id) {
-        nextIndex = (nextIndex + 1) % playlist.length;
+      if (isRadioMode) {
+        let nextIndex = Math.floor(Math.random() * playlist.length);
+        nextTrack = playlist[nextIndex];
+        // Avoid repeat if possible
+        if (playlist.length > 1 && nextTrack._id === currentTrack?._id) {
+          nextIndex = (nextIndex + 1) % playlist.length;
+          nextTrack = playlist[nextIndex];
+        }
+      } else {
+        const currentIndex = playlist.findIndex(t => t._id === currentTrack?._id);
+        const nextIndex = (currentIndex + 1) % playlist.length;
         nextTrack = playlist[nextIndex];
       }
       
       playTrack(nextTrack);
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  }, [playlist, isRadioMode, currentTrack]); // Re-bind when these change
+
+
+  const playNext = () => {
+    if (playlist.length === 0) return;
+
+    let nextTrack: Track;
+    if (isRadioMode) {
+      let nextIndex = Math.floor(Math.random() * playlist.length);
+      nextTrack = playlist[nextIndex];
+      if (playlist.length > 1 && nextTrack._id === currentTrack?._id) {
+        nextIndex = (nextIndex + 1) % playlist.length;
+        nextTrack = playlist[nextIndex];
+      }
     } else {
-      // Sequential playback
       const currentIndex = playlist.findIndex(t => t._id === currentTrack?._id);
       const nextIndex = (currentIndex + 1) % playlist.length;
-      playTrack(playlist[nextIndex]);
+      nextTrack = playlist[nextIndex];
     }
+    playTrack(nextTrack);
   };
 
   const playPrevious = () => {
     if (playlist.length === 0) return;
-    
-    // If radio mode, previous doesn't make much sense strictly, but we can just go to a random one or previous in list
-    // Let's stick to sequential logic for previous even in radio mode for simplicity, or just random.
-    // Standard behavior: Previous usually goes to start of song if > 3s, else previous track.
     
     if (audioRef.current && audioRef.current.currentTime > 3) {
       audioRef.current.currentTime = 0;

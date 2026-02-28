@@ -35,7 +35,7 @@ export function Home() {
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
       </div>
     );
   }
@@ -43,113 +43,95 @@ export function Home() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       
-      {/* Hero / Search Section */}
-      <div className="mb-12 flex flex-col items-center justify-center text-center">
-        <motion.h1 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6 text-4xl font-bold tracking-tight sm:text-6xl bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent"
-        >
-          Discover New Sounds
-        </motion.h1>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="relative w-full max-w-xl"
-        >
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-            <Search className="h-5 w-5 text-white/40" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search tracks or artists..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full rounded-full border border-white/10 bg-white/5 py-4 pl-12 pr-4 text-white placeholder-white/40 backdrop-blur-md transition-all focus:border-indigo-500/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
-        </motion.div>
+      {/* Header Section */}
+      <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
+            Listen Now
+          </h1>
+          <p className="mt-2 text-lg text-black/60 dark:text-white/60">
+            Top picks for you. Updated today.
+          </p>
+        </div>
 
-        <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.2 }}
-           className="mt-6"
-        >
+        <div className="flex items-center gap-3">
+           <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 w-full min-w-[200px] rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/10 pl-9 pr-4 text-sm text-black dark:text-white placeholder-black/40 dark:placeholder-white/40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          
           <button
             onClick={toggleRadioMode}
             className={cn(
-              "flex items-center gap-2 rounded-full px-6 py-2 text-sm font-medium transition-all border",
+              "flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all",
               isRadioMode 
-                ? "bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]" 
-                : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-blue-500 text-white shadow-md" 
+                : "bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20"
             )}
           >
             <Radio size={16} />
-            {isRadioMode ? "Radio Mode Active" : "Start Radio Mode"}
+            <span className="hidden sm:inline">Radio</span>
           </button>
-        </motion.div>
+        </div>
       </div>
 
+      <hr className="mb-8 border-black/5 dark:border-white/10" />
+
       {/* Track Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {filteredTracks.map((track, index) => (
           <motion.div
             key={track._id}
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10"
+            transition={{ delay: index * 0.03 }}
+            className="group relative"
           >
             {/* Cover Art */}
-            <div className="relative aspect-square overflow-hidden rounded-xl bg-black/20">
+            <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-800 shadow-sm transition-shadow group-hover:shadow-md">
               <img 
                 src={track.coverArtUrl || "https://picsum.photos/seed/music/400/400"} 
                 alt={track.title}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
               />
               
               {/* Overlay Play Button */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   onClick={(e) => handlePlayClick(e, track)}
-                  className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-xl transition-transform hover:scale-105"
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black shadow-lg backdrop-blur-sm transition-transform hover:scale-105"
                 >
                   {currentTrack?._id === track._id && isPlaying ? (
-                    <Pause size={24} fill="currentColor" />
+                    <Pause size={20} fill="currentColor" />
                   ) : (
-                    <Play size={24} fill="currentColor" className="ml-1" />
+                    <Play size={20} fill="currentColor" className="ml-1" />
                   )}
                 </button>
               </div>
             </div>
 
             {/* Info */}
-            <div className="mt-4">
+            <div className="min-w-0">
               <Link to={`/track/${track.slug}`} className="block">
-                <h3 className="truncate text-lg font-semibold text-white hover:text-indigo-400 transition-colors">
+                <h3 className="truncate text-sm font-medium text-black dark:text-white hover:underline">
                   {track.title}
                 </h3>
               </Link>
-              <p className="truncate text-sm text-white/60">{track.artist}</p>
+              <p className="truncate text-xs text-black/60 dark:text-white/60">{track.artist}</p>
             </div>
-            
-            {/* Playing Indicator */}
-            {currentTrack?._id === track._id && (
-              <div className="absolute top-4 right-4 flex gap-1">
-                <span className="block h-3 w-1 animate-[music-bar_1s_ease-in-out_infinite] rounded-full bg-indigo-500" />
-                <span className="block h-3 w-1 animate-[music-bar_1.2s_ease-in-out_infinite] rounded-full bg-indigo-500" style={{ animationDelay: '0.1s' }} />
-                <span className="block h-3 w-1 animate-[music-bar_0.8s_ease-in-out_infinite] rounded-full bg-indigo-500" style={{ animationDelay: '0.2s' }} />
-              </div>
-            )}
           </motion.div>
         ))}
       </div>
 
       {filteredTracks.length === 0 && (
-        <div className="py-20 text-center text-white/40">
+        <div className="py-20 text-center text-black/40 dark:text-white/40">
           <p>No tracks found matching "{searchQuery}"</p>
         </div>
       )}

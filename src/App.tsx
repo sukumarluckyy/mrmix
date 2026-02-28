@@ -4,21 +4,24 @@
  */
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AudioProvider } from './context/AudioContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { TrackPage } from './pages/TrackPage';
 
 export default function App() {
   return (
-    <AudioProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="track/:slug" element={<TrackPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AudioProvider>
+    <ThemeProvider>
+      <AudioProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Home />} />
+              <Route path="track/:slug" element={<TrackPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AudioProvider>
+    </ThemeProvider>
   );
 }
