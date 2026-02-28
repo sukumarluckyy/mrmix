@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Track } from '../services/api';
+import { Track, Quote, fetchQuotes } from '../services/api';
 
 interface AudioContextType {
   currentTrack: Track | null;
@@ -14,7 +14,8 @@ interface AudioContextType {
   togglePlay: () => void;
   toggleRadioMode: () => void;
   toggleRepeat: () => void;
-  playNext: () => void; // Kept for internal use (auto-advance)
+  playNext: () => void;
+  playPrevious: () => void;
   seek: (time: number) => void;
   setPlaylist: (tracks: Track[]) => void;
 }
@@ -25,12 +26,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playlist, setPlaylist] = useState<Track[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isRadioMode, setIsRadioMode] = useState(false);
   const [isRepeating, setIsRepeating] = useState(false); // Repeat One Track
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   
+  // Quote Logic State
+  const [songsPlayedSinceLastQuote, setSongsPlayedSinceLastQuote] = useState(0);
+  const [nextQuoteDistance, setNextQuoteDistance] = useState(Math.floor(Math.random() * 3) + 1); // 1 to 3
+
   // History to prevent repeats in Radio Mode
   const [playHistory, setPlayHistory] = useState<string[]>([]);
   
@@ -45,10 +51,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleLoadedMetadata = () => setDuration(audio.duration);
-    const handleEnded = () => {
-      // If repeating, just play again
-      // We handle this in the effect below that listens to 'ended'
-    };
     const handleCanPlay = () => setIsLoading(false);
     const handleWaiting = () => setIsLoading(true);
     const handlePlay = () => setIsPlaying(true);
@@ -60,6 +62,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('waiting', handleWaiting);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+
+    // Fetch quotes
+    fetchQuotes().then(setQuotes);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -103,8 +108,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setCurrentTrack(track);
-    // Add to history
-    setPlayHistory(prev => [...prev, track._id]);
+    if (!track.isQuote) {
+      setPlayHistory(prev => [...prev, track._id]);
+    }
   };
 
   const togglePlay = async () => {
@@ -164,43 +170,61 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     playTrack(nextTrack);
   };
 
-  // Handle 'ended' event
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleEnded = () => {
-      if (isRepeating && currentTrack) {
-        audio.currentTime = 0;
-        audio.play().catch(e => console.error(e));
-        return;
-      }
-
-      if (isRadioMode) {
-        playNextRandom();
-      } else {
-        // Stop or loop playlist? User didn't specify behavior for normal mode end.
-        // Let's just stop if not radio mode, or maybe loop playlist.
-        // User asked for "Radio mode" specifically for random.
-        // We'll just stop if not radio mode as there are no next/prev buttons.
-        setIsPlaying(false);
-      }
-    };
-
-    audio.addEventListener('ended', handleEnded);
-    return () => audio.removeEventListener('ended', handleEnded);
-  }, [playlist, isRadioMode, isRepeating, currentTrack, playHistory]);
-
-
   const playNext = () => {
-    // Internal use for manual skip if we had one, or auto-advance
+    // Check if we just finished a quote
+    if (currentTrack?.isQuote) {
+      // Resume music (random)
+      playNextRandom();
+      return;
+    }
+
+    // If we just finished a song, check if we should play a quote
+    if (isRadioMode && currentTrack?.genre) {
+       const newCount = songsPlayedSinceLastQuote + 1;
+       setSongsPlayedSinceLastQuote(newCount);
+
+       if (newCount >= nextQuoteDistance) {
+         // Try to find a matching quote
+         const matchingQuotes = quotes.filter(q => q.genre.toLowerCase() === currentTrack.genre?.toLowerCase());
+         
+         if (matchingQuotes.length > 0) {
+           const randomQuote = matchingQuotes[Math.floor(Math.random() * matchingQuotes.length)];
+           
+           // Convert Quote to Track
+           const quoteTrack: Track = {
+             _id: randomQuote._id,
+             title: randomQuote.quotes,
+             artist: randomQuote.author,
+             coverArtUrl: randomQuote.coverArtUrl,
+             trackFileUrl: randomQuote.quoteFileUrl,
+             slug: randomQuote.slug,
+             genre: randomQuote.genre,
+             isQuote: true
+           };
+
+           // Reset counters
+           setSongsPlayedSinceLastQuote(0);
+           setNextQuoteDistance(Math.floor(Math.random() * 3) + 1); // 1 to 3
+
+           playTrack(quoteTrack);
+           return;
+         }
+       }
+    }
+
+    // Normal next track logic
     if (isRadioMode) {
       playNextRandom();
     } else {
-      // If not radio mode, maybe just stop or go to next in list?
-      // Since UI has no next button, this is only called by 'ended' if we added logic for it.
-      // But we handled 'ended' above.
+       // Linear playback logic (if we had it, but for now just stop or loop)
+       setIsPlaying(false);
     }
+  };
+
+  const playPrevious = () => {
+     // Not implemented in UI but kept for API completeness/shortcuts
+     // For now just restart current or random
+     if (audioRef.current) audioRef.current.currentTime = 0;
   };
 
   const seek = (time: number) => {
@@ -209,6 +233,24 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       setCurrentTime(time);
     }
   };
+
+  // Handle 'ended' event
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => {
+       if (isRepeating && currentTrack && !currentTrack.isQuote) {
+          audio.currentTime = 0;
+          audio.play().catch(console.error);
+          return;
+       }
+       playNext();
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  }, [isRepeating, currentTrack, isRadioMode, songsPlayedSinceLastQuote, nextQuoteDistance, quotes, playlist, playHistory]);
 
   return (
     <AudioContext.Provider value={{
