@@ -1,13 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { fetchTracks, Track } from '../services/api';
-import { Search, Play, Pause, Radio, X } from 'lucide-react';
+import { Search, Play, Pause, Dice5, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 export function Home() {
-  const { setPlaylist, playTrack, currentTrack, isPlaying, isRadioMode, toggleRadioMode } = useAudio();
+  const { 
+    setPlaylist, 
+    playTrack, 
+    currentTrack, 
+    isPlaying, 
+    isRadioMode, 
+    toggleRadioMode,
+  } = useAudio();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -29,6 +36,7 @@ export function Home() {
 
   const handlePlayClick = (e: React.MouseEvent, track: Track) => {
     e.preventDefault();
+    e.stopPropagation();
     playTrack(track);
   };
 
@@ -43,22 +51,20 @@ export function Home() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       
-      {/* Floating Radio Button */}
+      {/* Floating Dice (Radio) Button */}
       <motion.button
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
         onClick={toggleRadioMode}
         className={cn(
-          "fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all",
+          "fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-colors sm:bottom-8",
           isRadioMode 
             ? "bg-blue-500 text-white shadow-blue-500/30" 
-            : "bg-white dark:bg-[#1c1c1e] text-black dark:text-white border border-black/5 dark:border-white/10"
+            : "bg-white dark:bg-[#1c1c1e] text-black dark:text-white shadow-black/10 dark:shadow-white/5"
         )}
-        title="Toggle Radio Mode"
+        title="Surprise Me (Random Play)"
       >
-        <Radio size={24} className={cn(isRadioMode && "animate-pulse")} />
+        <Dice5 size={24} className={cn(isRadioMode && "animate-spin-slow")} />
       </motion.button>
 
       {/* Header Section */}
@@ -112,9 +118,11 @@ export function Home() {
               />
               
               {/* Overlay Play Button */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <div 
+                className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100 cursor-pointer"
+                onClick={(e) => handlePlayClick(e, track)}
+              >
                 <button
-                  onClick={(e) => handlePlayClick(e, track)}
                   className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black shadow-lg backdrop-blur-sm transition-transform hover:scale-105"
                 >
                   {currentTrack?._id === track._id && isPlaying ? (

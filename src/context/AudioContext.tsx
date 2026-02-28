@@ -36,6 +36,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Quote Logic State
   const [songsPlayedSinceLastQuote, setSongsPlayedSinceLastQuote] = useState(0);
   const [nextQuoteDistance, setNextQuoteDistance] = useState(Math.floor(Math.random() * 3) + 1); // 1 to 3
+  const [quoteHistory, setQuoteHistory] = useState<string[]>([]);
 
   // History to prevent repeats in Radio Mode
   const [playHistory, setPlayHistory] = useState<string[]>([]);
@@ -179,28 +180,50 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
 
     // If we just finished a song, check if we should play a quote
+    // Only if in Radio Mode and track has a genre
     if (isRadioMode && currentTrack?.genre) {
        const newCount = songsPlayedSinceLastQuote + 1;
        setSongsPlayedSinceLastQuote(newCount);
 
        if (newCount >= nextQuoteDistance) {
          // Try to find a matching quote
-         const matchingQuotes = quotes.filter(q => q.genre.toLowerCase() === currentTrack.genre?.toLowerCase());
+         // Case-insensitive matching and ensure genre exists
+         const currentGenre = currentTrack.genre.toLowerCase().trim();
          
+         // Filter quotes by genre AND not in history
+         let matchingQuotes = quotes.filter(q => 
+           q.genre && q.genre.toLowerCase().trim() === currentGenre && !quoteHistory.includes(q._id)
+         );
+         
+         // If all quotes for this genre played, reset history for this genre
+         if (matchingQuotes.length === 0) {
+            // Try matching quotes ignoring history
+            matchingQuotes = quotes.filter(q => 
+              q.genre && q.genre.toLowerCase().trim() === currentGenre
+            );
+            // If we found some now, it means we exhausted them, so we can clear history for these specific quotes
+            // But simpler to just allow re-playing them. 
+            // We don't clear the WHOLE history, just proceed with available ones.
+         }
+
          if (matchingQuotes.length > 0) {
            const randomQuote = matchingQuotes[Math.floor(Math.random() * matchingQuotes.length)];
            
            // Convert Quote to Track
+           // Map 'quotes' (text) to 'title' and 'author' to 'artist'
            const quoteTrack: Track = {
              _id: randomQuote._id,
-             title: randomQuote.quotes,
-             artist: randomQuote.author,
+             title: randomQuote.quotes, // Quote text as Title
+             artist: randomQuote.author, // Author as Artist
              coverArtUrl: randomQuote.coverArtUrl,
              trackFileUrl: randomQuote.quoteFileUrl,
              slug: randomQuote.slug,
              genre: randomQuote.genre,
              isQuote: true
            };
+
+           // Add to quote history
+           setQuoteHistory(prev => [...prev, randomQuote._id]);
 
            // Reset counters
            setSongsPlayedSinceLastQuote(0);
