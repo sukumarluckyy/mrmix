@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAudio } from '../context/AudioContext';
 import { fetchTracks, Track } from '../services/api';
-import { Search, Play, Pause, Radio } from 'lucide-react';
+import { Search, Play, Pause, Radio, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 export function Home() {
-  const { setPlaylist, playTrack, currentTrack, isPlaying, togglePlay, isRadioMode, toggleRadioMode } = useAudio();
+  const { setPlaylist, playTrack, currentTrack, isPlaying, isRadioMode, toggleRadioMode } = useAudio();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,41 +43,50 @@ export function Home() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       
-      {/* Header Section */}
-      <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl">
-            Listen Now
-          </h1>
-          <p className="mt-2 text-lg text-black/60 dark:text-white/60">
-            Top picks for you. Updated today.
-          </p>
-        </div>
+      {/* Floating Radio Button */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={toggleRadioMode}
+        className={cn(
+          "fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all",
+          isRadioMode 
+            ? "bg-blue-500 text-white shadow-blue-500/30" 
+            : "bg-white dark:bg-[#1c1c1e] text-black dark:text-white border border-black/5 dark:border-white/10"
+        )}
+        title="Toggle Radio Mode"
+      >
+        <Radio size={24} className={cn(isRadioMode && "animate-pulse")} />
+      </motion.button>
 
-        <div className="flex items-center gap-3">
-           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40 dark:text-white/40" />
+      {/* Header Section */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white sm:text-4xl mb-6">
+          Listen Now
+        </h1>
+
+        {/* Apple-style Search Bar */}
+        <div className="relative max-w-md">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Search in Library"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 w-full min-w-[200px] rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/10 pl-9 pr-4 text-sm text-black dark:text-white placeholder-black/40 dark:placeholder-white/40 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="h-12 w-full rounded-xl bg-gray-100 dark:bg-[#1c1c1e] pl-10 pr-10 text-[17px] text-black dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
             />
-          </div>
-          
-          <button
-            onClick={toggleRadioMode}
-            className={cn(
-              "flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all",
-              isRadioMode 
-                ? "bg-blue-500 text-white shadow-md" 
-                : "bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20"
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-gray-300 dark:bg-gray-600 p-0.5 text-white hover:bg-gray-400 dark:hover:bg-gray-500"
+              >
+                <X size={14} />
+              </button>
             )}
-          >
-            <Radio size={16} />
-            <span className="hidden sm:inline">Radio</span>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -120,18 +129,18 @@ export function Home() {
             {/* Info */}
             <div className="min-w-0">
               <Link to={`/track/${track.slug}`} className="block">
-                <h3 className="truncate text-sm font-medium text-black dark:text-white hover:underline">
+                <h3 className="truncate text-[15px] font-medium text-black dark:text-white hover:underline leading-tight">
                   {track.title}
                 </h3>
               </Link>
-              <p className="truncate text-xs text-black/60 dark:text-white/60">{track.artist}</p>
+              <p className="truncate text-[13px] text-gray-500 dark:text-gray-400 mt-1">{track.artist}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
       {filteredTracks.length === 0 && (
-        <div className="py-20 text-center text-black/40 dark:text-white/40">
+        <div className="py-20 text-center text-gray-500 dark:text-gray-400">
           <p>No tracks found matching "{searchQuery}"</p>
         </div>
       )}
