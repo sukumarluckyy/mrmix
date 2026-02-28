@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAudio } from '../context/AudioContext';
-import { Play, Pause, Repeat, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Play, Pause, Repeat, X } from 'lucide-react';
+import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { cn } from '../lib/utils';
 
 export function Player() {
@@ -13,10 +13,43 @@ export function Player() {
     duration, 
     seek,
     isRepeating,
-    toggleRepeat
+    toggleRepeat,
+    playNext,
+    playPrevious
   } = useAudio();
 
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'ArrowRight':
+          if (e.metaKey || e.ctrlKey) {
+             playNext();
+          } else {
+             seek(Math.min(currentTime + 5, duration));
+          }
+          break;
+        case 'ArrowLeft':
+          if (e.metaKey || e.ctrlKey) {
+             playPrevious();
+          } else {
+             seek(Math.max(currentTime - 5, 0));
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePlay, seek, currentTime, duration, playNext, playPrevious]);
 
   if (!currentTrack) return null;
 
@@ -27,6 +60,12 @@ export function Player() {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.y > 100) {
+      setIsExpanded(false);
+    }
   };
 
   return (
@@ -90,15 +129,25 @@ export function Player() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.2 }}
+            onDragEnd={handleDragEnd}
             className="fixed inset-0 z-[60] flex flex-col bg-[#f5f5f7] dark:bg-[#000000] p-6 sm:p-8"
           >
-            {/* Handle / Close Button */}
-            <div className="flex justify-center mb-8">
+            {/* Header with Close Button */}
+            <div className="flex justify-between items-center mb-8">
+              {/* Drag Handle Indicator for Mobile */}
+              <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20 mx-auto sm:hidden" />
+              
+              {/* Close Button for Desktop */}
               <button 
                 onClick={() => setIsExpanded(false)}
-                className="h-1.5 w-12 rounded-full bg-black/20 dark:bg-white/20 hover:bg-black/30 dark:hover:bg-white/30 transition-colors"
+                className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-colors ml-auto"
                 aria-label="Close player"
-              />
+              >
+                <X size={20} className="text-black dark:text-white" />
+              </button>
             </div>
 
             <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
@@ -148,13 +197,15 @@ export function Player() {
                 </div>
               </div>
 
-              {/* Main Controls */}
-              <div className="flex items-center justify-center gap-12">
+              {/* Main Controls - Rectangular Buttons */}
+              <div className="flex items-center justify-center gap-6">
                 <button 
                   onClick={toggleRepeat}
                   className={cn(
-                    "p-2 rounded-full transition-colors",
-                    isRepeating ? "bg-blue-500/10 text-blue-500" : "text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+                    "h-14 w-20 rounded-2xl flex items-center justify-center transition-all",
+                    isRepeating 
+                      ? "bg-blue-500/10 text-blue-500" 
+                      : "bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20"
                   )}
                 >
                   <Repeat size={24} />
@@ -162,25 +213,15 @@ export function Player() {
 
                 <button 
                   onClick={togglePlay}
-                  className="flex h-20 w-20 items-center justify-center rounded-full bg-black dark:bg-white text-white dark:text-black shadow-xl hover:scale-105 transition-transform"
+                  className="h-20 w-32 rounded-3xl flex items-center justify-center bg-black dark:bg-white text-white dark:text-black shadow-xl hover:scale-105 transition-transform"
                 >
                   {isPlaying ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" className="ml-1" />}
                 </button>
-
-                {/* Placeholder for symmetry or another action, maybe just empty or share */}
-                <div className="w-10" /> 
               </div>
             </div>
             
-            <div className="mt-auto flex justify-center pb-4">
-               <button 
-                 onClick={() => setIsExpanded(false)}
-                 className="flex items-center gap-2 text-sm font-medium text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white transition-colors"
-               >
-                 <ChevronDown size={16} />
-                 Hide Player
-               </button>
-            </div>
+            {/* Spacer for bottom safe area */}
+            <div className="h-8" />
           </motion.div>
         )}
       </AnimatePresence>
