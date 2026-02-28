@@ -151,23 +151,51 @@ export function Player() {
             </div>
 
             <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
-              {/* Large Cover Art */}
-              <div className="aspect-square w-full rounded-3xl overflow-hidden shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-12px_rgba(255,255,255,0.1)] mb-10 bg-gray-200 dark:bg-gray-800">
+              {/* Large Cover Art - Tap to Play/Pause */}
+              <motion.div 
+                whileTap={{ scale: 0.98 }}
+                onClick={togglePlay}
+                className="aspect-square w-full rounded-3xl overflow-hidden shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-12px_rgba(255,255,255,0.1)] mb-10 bg-gray-200 dark:bg-gray-800 cursor-pointer relative group"
+              >
                 <img 
                   src={currentTrack.coverArtUrl || "https://picsum.photos/seed/music/800/800"} 
                   alt={currentTrack.title}
                   className="h-full w-full object-cover"
                 />
-              </div>
+                
+                {/* Play/Pause Overlay Indicator (Optional, subtle) */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                   {isPlaying ? (
+                     <Pause size={48} className="text-white drop-shadow-lg" fill="currentColor" />
+                   ) : (
+                     <Play size={48} className="text-white drop-shadow-lg ml-2" fill="currentColor" />
+                   )}
+                </div>
+              </motion.div>
 
-              {/* Track Info */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-black dark:text-white truncate">
-                  {currentTrack.title}
-                </h2>
-                <p className="text-lg text-black/60 dark:text-white/60 truncate mt-1">
-                  {currentTrack.artist}
-                </p>
+              {/* Track Info & Loop Button Row */}
+              <div className="mb-8 flex items-start justify-between">
+                <div className="min-w-0 flex-1 pr-4">
+                  <h2 className="text-2xl font-bold text-black dark:text-white truncate">
+                    {currentTrack.title}
+                  </h2>
+                  <p className="text-lg text-black/60 dark:text-white/60 truncate mt-1">
+                    {currentTrack.artist}
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={toggleRepeat}
+                  className={cn(
+                    "p-2 rounded-full transition-colors flex-shrink-0 mt-1",
+                    isRepeating 
+                      ? "bg-blue-500/10 text-blue-500" 
+                      : "text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
+                  )}
+                  title="Toggle Repeat"
+                >
+                  <Repeat size={20} />
+                </button>
               </div>
 
               {/* Scrubber */}
@@ -195,28 +223,6 @@ export function Player() {
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
-              </div>
-
-              {/* Main Controls - Rectangular Buttons */}
-              <div className="flex items-center justify-center gap-6">
-                <button 
-                  onClick={toggleRepeat}
-                  className={cn(
-                    "h-14 w-20 rounded-2xl flex items-center justify-center transition-all",
-                    isRepeating 
-                      ? "bg-blue-500/10 text-blue-500" 
-                      : "bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20"
-                  )}
-                >
-                  <Repeat size={24} />
-                </button>
-
-                <button 
-                  onClick={togglePlay}
-                  className="h-20 w-32 rounded-3xl flex items-center justify-center bg-black dark:bg-white text-white dark:text-black shadow-xl hover:scale-105 transition-transform"
-                >
-                  {isPlaying ? <Pause size={36} fill="currentColor" /> : <Play size={36} fill="currentColor" className="ml-1" />}
-                </button>
               </div>
             </div>
             
